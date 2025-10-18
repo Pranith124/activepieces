@@ -49,7 +49,7 @@ export const flowEngineWorker: FastifyPluginAsyncTypebox = async (app) => {
     })
 
     app.post('/update-run', UpdateRunProgress, async (request, reply) => {
-        const { runId, workerHandlerId, runDetails, httpRequestId, executionStateContentLength, executionStateBuffer, failedStepName: failedStepName, logsFileId, testSingleStepMode } = request.body
+        const { runId, workerHandlerId, runDetails, httpRequestId, failedStepName: failedStepName, testSingleStepMode, logsFileId } = request.body
         const progressUpdateType = request.body.progressUpdateType ?? ProgressUpdateType.NONE
 
         const nonSupportedStatuses = [FlowRunStatus.RUNNING, FlowRunStatus.SUCCEEDED, FlowRunStatus.PAUSED]
@@ -72,25 +72,6 @@ export const flowEngineWorker: FastifyPluginAsyncTypebox = async (app) => {
             logsFileId,
         })
 
-        if (!isNil(executionStateContentLength)) {
-            const updateSizeOnlyForSignedUrl = isNil(executionStateBuffer) && !isNil(logsFileId)
-            const uploadTheLogs = !isNil(executionStateBuffer)
-            if (uploadTheLogs) {
-                await flowRunService(request.log).updateLogs({
-                    flowRunId: runId,
-                    logsFileId: runWithoutSteps.logsFileId ?? undefined,
-                    projectId: request.principal.projectId,
-                    executionStateString: executionStateBuffer,
-                    executionStateContentLength,
-                })
-            }
-            else if (updateSizeOnlyForSignedUrl) {
-                await fileService(request.log).updateSize({
-                    fileId: runWithoutSteps.logsFileId!,
-                    size: executionStateContentLength,
-                })
-            }
-        }
         if (runDetails.status === FlowRunStatus.PAUSED) {
             await flowRunService(request.log).pause({
                 flowRunId: runId,
@@ -182,10 +163,8 @@ export const flowEngineWorker: FastifyPluginAsyncTypebox = async (app) => {
             .status(StatusCodes.OK)
             .send(data)
     })
-
-
-
 }
+
 
 async function getFlowResponse(
     result: FlowRunResponse,
